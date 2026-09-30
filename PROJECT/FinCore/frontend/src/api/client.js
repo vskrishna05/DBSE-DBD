@@ -1,9 +1,41 @@
 import axios from 'axios';
 
-const getApiBaseUrl = () => {
+export const DEFAULT_LIVE_TUNNEL_URL = 'https://facial-retrieval-dragon-screen.trycloudflare.com';
+
+export const getApiBaseUrl = () => {
+  const customUrl = typeof window !== 'undefined' ? localStorage.getItem('fincore_api_url') : null;
+  if (customUrl) {
+    return customUrl.endsWith('/api') ? customUrl : `${customUrl.replace(/\/$/, '')}/api`;
+  }
+
   const envUrl = import.meta.env.VITE_API_URL;
-  if (!envUrl) return '/api';
-  return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/$/, '')}/api`;
+  if (envUrl && !envUrl.includes('solutions-habits-census-asn')) {
+    return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/$/, '')}/api`;
+  }
+
+  // When hosted on Vercel or public domains without local API, route to the live backend tunnel
+  if (
+    typeof window !== 'undefined' &&
+    (window.location.hostname.includes('vercel.app') ||
+     (!window.location.hostname.includes('trycloudflare.com') &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'))
+  ) {
+    return `${DEFAULT_LIVE_TUNNEL_URL}/api`;
+  }
+
+  return '/api';
+};
+
+export const setCustomApiUrl = (url) => {
+  if (typeof window !== 'undefined') {
+    if (url && url.trim()) {
+      const cleanUrl = url.trim().replace(/\/api\/?$/, '').replace(/\/$/, '');
+      localStorage.setItem('fincore_api_url', cleanUrl);
+    } else {
+      localStorage.removeItem('fincore_api_url');
+    }
+  }
 };
 
 const api = axios.create({
@@ -13,8 +45,9 @@ const api = axios.create({
   },
 });
 
-// Auto-inject JWT token from localStorage
+// Auto-inject JWT token and dynamic baseURL
 api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
   const token = localStorage.getItem('fincore_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -27,7 +60,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     let message = 'An unexpected error occurred. Please try again.';
-    if (error.response?.data?.detail) {
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      message = 'Network Error: Cannot connect to FinCore backend server. Please verify your backend server or live tunnel is running.';
+    } else if (error.response?.data?.detail) {
       message = typeof error.response.data.detail === 'string'
         ? error.response.data.detail
         : JSON.stringify(error.response.data.detail);
