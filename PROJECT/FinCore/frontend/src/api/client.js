@@ -13,14 +13,19 @@ export const getApiBaseUrl = () => {
     return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/$/, '')}/api`;
   }
 
-  // When hosted on Vercel or public domains without local API, route to the live backend tunnel
+  // When running on Render, localhost, or through a unified server, API is on the same domain
   if (
     typeof window !== 'undefined' &&
-    (window.location.hostname.includes('vercel.app') ||
-     (!window.location.hostname.includes('trycloudflare.com') &&
-      window.location.hostname !== 'localhost' &&
-      window.location.hostname !== '127.0.0.1'))
+    (window.location.hostname.includes('onrender.com') ||
+     window.location.hostname.includes('trycloudflare.com') ||
+     window.location.hostname === 'localhost' ||
+     window.location.hostname === '127.0.0.1')
   ) {
+    return '/api';
+  }
+
+  // When hosted on external static host (e.g. Vercel) without collocated API, route to active tunnel
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
     return `${DEFAULT_LIVE_TUNNEL_URL}/api`;
   }
 
