@@ -2,6 +2,7 @@ services:
   - type: web
     name: fincore-saas
     runtime: python
+    plan: free
     rootDir: PROJECT/FinCore
     buildCommand: "npm --prefix frontend install && npm --prefix frontend run build && pip install -r backend/requirements.txt"
     startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
