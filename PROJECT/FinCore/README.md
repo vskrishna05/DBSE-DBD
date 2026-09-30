@@ -11,8 +11,9 @@
 
 ## 🌐 Live Production Deployment
 
-- **Live URL**: [https://fincore-portal.vercel.app](https://fincore-portal.vercel.app)
-- **Deployment Platform**: Vercel (Edge CDN) + FastAPI Core Gateway
+- **Live HTTPS URL (Connected to Live Database)**: [https://rental-railway-promotional-sensitivity.trycloudflare.com](https://rental-railway-promotional-sensitivity.trycloudflare.com)
+- **Vercel Frontend Mirror**: [https://fincore-portal.vercel.app](https://fincore-portal.vercel.app)
+- **Deployment Platform**: Cloudflare Secure Tunnel + FastAPI Core Gateway + MySQL 8.0 ACID Database
 
 ---
 
