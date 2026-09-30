@@ -80,6 +80,24 @@ app.include_router(notifications_router)
 app.include_router(analytics_router)
 app.include_router(audit_logs_router)
 
+@app.on_event("startup")
+def startup_db_init():
+    try:
+        from backend.app.database import engine, Base, SessionLocal
+        import backend.app.models  # noqa
+        Base.metadata.create_all(bind=engine)
+        db = SessionLocal()
+        try:
+            from backend.app.models import FinanceCompany
+            if db.query(FinanceCompany).count() == 0:
+                logger.info("Empty database detected. Seeding FinNova and CredNest demo records...")
+                from backend.scripts.init_system_metadata import setup_banks_and_customers
+                setup_banks_and_customers()
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"Startup DB init check: {e}")
+
 @app.get("/api/health", tags=["Health"])
 def health_check():
     return {

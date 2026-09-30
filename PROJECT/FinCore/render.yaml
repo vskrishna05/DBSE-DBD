@@ -1,19 +1,17 @@
 services:
   - type: web
-    name: fincore-api
+    name: fincore-saas
     runtime: python
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: "npm --prefix frontend install && npm --prefix frontend run build && pip install -r backend/requirements.txt"
+    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: ENVIRONMENT
         value: production
       - key: DATABASE_URL
-        sync: false
+        value: "sqlite:///fincore.db"
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET
         generateValue: true
-      - key: FRONTEND_URL
-        sync: false
