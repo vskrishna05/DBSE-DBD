@@ -7,7 +7,9 @@ logger = logging.getLogger("fincore.database")
 
 # Build reliable connection string
 db_url = settings.DATABASE_URL
-if not db_url:
+if db_url and db_url.startswith("mysql://"):
+    db_url = db_url.replace("mysql://", "mysql+pymysql://", 1)
+elif not db_url:
     pwd = f":{settings.DB_PASSWORD}" if settings.DB_PASSWORD else ""
     db_url = f"mysql+pymysql://{settings.DB_USER}{pwd}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}?charset=utf8mb4"
 

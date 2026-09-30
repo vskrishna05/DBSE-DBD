@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: StrongDbPassword!123
+      MYSQL_DATABASE: fincore_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./fincore_database.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:StrongDbPassword!123@db:3306/fincore_db?charset=utf8mb4
+      - ENVIRONMENT=production
+      - FRONTEND_URL=http://localhost:3000
+      - SECRET_KEY=fincore-super-secure-production-secret-key-32chars
+      - JWT_SECRET=fincore-jwt-token-secret-signature-2026-production
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:8000
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
