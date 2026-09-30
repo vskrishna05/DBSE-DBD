@@ -1,7 +1,9 @@
 import logging
-from fastapi import FastAPI, Request, status
+from pathlib import Path
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from backend.app.config import settings
 from backend.app.routers import (
     auth_router,
@@ -87,11 +89,33 @@ def health_check():
         "version": settings.PROJECT_VERSION
     }
 
-@app.get("/", tags=["Root"])
-def root():
-    return {
-        "name": "FinCore Core Banking & Subscription SaaS API",
-        "version": "1.0.0",
-        "documentation": "/docs",
-        "openapi": "/openapi.json"
-    }
+# Mount Frontend Single Page Application (SPA) if built
+DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+if DIST_DIR.exists():
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    async def serve_spa_root():
+        return FileResponse(DIST_DIR / "index.html")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa_path(full_path: str):
+        if full_path.startswith("api") or full_path in ("docs", "redoc", "openapi.json"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        
+        file_path = DIST_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(DIST_DIR / "index.html")
+else:
+    @app.get("/", tags=["Root"])
+    def root():
+        return {
+            "name": "FinCore Core Banking & Subscription SaaS API",
+            "version": "1.0.0",
+            "documentation": "/docs",
+            "openapi": "/openapi.json"
+        }
