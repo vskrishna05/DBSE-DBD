@@ -4,7 +4,7 @@ FinCore is a multi-tenant financial services management platform built for banki
 
 The platform provides separate interfaces for customers and company administrators while maintaining strict tenant-level data isolation.
 
-Website Link to access: https://fincore-portal.vercel.app/
+Website Link to access: https://fincore-i48i.onrender.com/
 ---
 
 ## Overview
