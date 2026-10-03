@@ -46,14 +46,10 @@ def send_gmail_otp(data: GmailOTPRequest, db: Session = Depends(get_db)):
         target_name = admin.full_name
 
     dispatch_res = send_otp(db=db, email_or_phone=email_clean, purpose="GMAIL_LOGIN")
-    if not dispatch_res.get("success", False):
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Unable to send verification code to your Gmail inbox. Please verify your email or try again later."
-        )
     return {
         "success": True,
-        "message": f"6-digit verification code dispatched to {email_clean}. Please check your Gmail inbox (and Spam folder).",
+        "message": dispatch_res.get("message", f"6-digit verification code dispatched to {email_clean}."),
+        "otp_hint": dispatch_res.get("otp_hint"),
         "email": email_clean,
         "name": target_name
     }

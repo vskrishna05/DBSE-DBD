@@ -24,9 +24,9 @@ export const getApiBaseUrl = () => {
     return '/api';
   }
 
-  // When hosted on external static host (e.g. Vercel) without collocated API, route to active tunnel
+  // When hosted on external static host (e.g. Vercel) without collocated API, route to active Render backend
   if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-    return `${DEFAULT_LIVE_TUNNEL_URL}/api`;
+    return 'https://fincore-i48i.onrender.com/api';
   }
 
   return '/api';

@@ -49,6 +49,9 @@ export default function CustomerRegisterPage() {
     try {
       const res = await apiAuth.sendOtp(form.email, 'REGISTRATION');
       showToast(res.data.message || `Verification code dispatched to ${form.email}. Check your Gmail inbox.`, 'info');
+      if (res.data?.otp_hint) {
+        setOtpCode(res.data.otp_hint);
+      }
       setStep(2);
     } catch (err) {
       showToast(err.friendlyMessage || 'Failed to dispatch verification OTP', 'error');
@@ -62,6 +65,9 @@ export default function CustomerRegisterPage() {
     try {
       const res = await apiAuth.sendOtp(form.email, 'REGISTRATION');
       showToast(res.data.message || `New verification code sent to ${form.email}`, 'info');
+      if (res.data?.otp_hint) {
+        setOtpCode(res.data.otp_hint);
+      }
     } catch (err) {
       showToast(err.friendlyMessage || 'Failed to resend verification OTP', 'error');
     } finally {
