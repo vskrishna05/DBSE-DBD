@@ -137,6 +137,11 @@ def _clean_phone(raw_phone: str) -> str:
 @router.post("/otp/send")
 def request_otp(data: OTPRequest, db: Session = Depends(get_db)):
     result = send_otp(db=db, email_or_phone=data.email, purpose=data.purpose)
+    if not result.get("success", False):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.get("message", f"Unable to deliver verification code to {data.email}. Please verify your email address.")
+        )
     return result
 
 @router.post("/otp/verify")

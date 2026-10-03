@@ -48,10 +48,22 @@ export default function CustomerRegisterPage() {
     setSubmitting(true);
     try {
       const res = await apiAuth.sendOtp(form.email, 'REGISTRATION');
-      showToast(res.data.message || 'Verification code dispatched to your email. Check your Gmail inbox.', 'info');
+      showToast(res.data.message || `Verification code dispatched to ${form.email}. Check your Gmail inbox.`, 'info');
       setStep(2);
     } catch (err) {
       showToast(err.friendlyMessage || 'Failed to dispatch verification OTP', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setSubmitting(true);
+    try {
+      const res = await apiAuth.sendOtp(form.email, 'REGISTRATION');
+      showToast(res.data.message || `New verification code sent to ${form.email}`, 'info');
+    } catch (err) {
+      showToast(err.friendlyMessage || 'Failed to resend verification OTP', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -238,7 +250,7 @@ export default function CustomerRegisterPage() {
                 onChange={(e) => setOtpCode(e.target.value)}
               />
               <div style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Check your Gmail. If not in Primary, please check <strong>Spam</strong> or <strong>Updates</strong>.
+                Dispatched directly to <strong>{form.email}</strong>. Check Inbox or <strong>Spam / Updates</strong> folder.
               </div>
             </div>
 
@@ -251,14 +263,25 @@ export default function CustomerRegisterPage() {
               {submitting ? 'Verifying & Registering...' : 'Verify OTP & Complete Registration'}
             </button>
 
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="btn btn-outline"
-              style={{ width: '100%', marginTop: '0.75rem' }}
-            >
-              Back to Profile
-            </button>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleResendOtp}
+                className="btn btn-outline"
+                style={{ flex: 1, padding: '0.65rem' }}
+              >
+                {submitting ? 'Sending...' : 'Resend Code'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="btn btn-outline"
+                style={{ flex: 1, padding: '0.65rem', borderColor: '#475569', color: '#94a3b8' }}
+              >
+                Change Email
+              </button>
+            </div>
           </form>
         )}
 

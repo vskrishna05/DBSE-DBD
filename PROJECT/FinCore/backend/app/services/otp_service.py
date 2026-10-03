@@ -94,20 +94,26 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
         return False
 
     try:
-        from email.utils import formatdate, make_msgid
+        from email.utils import formatdate
 
         username = (settings.SMTP_USERNAME or "").strip()
         clean_pwd = (settings.SMTP_PASSWORD or "").strip().replace(" ", "")
 
-        # For demo bank admin domains without mailboxes (admin@finnova.in / admin@crednest.in),
-        # dispatch directly to the administrator's configured personal Gmail (vsktupakula05@gmail.com)
-        is_demo_admin = recipient_email.endswith("@finnova.in") or recipient_email.endswith("@crednest.in")
-        target_delivery = username if is_demo_admin and username else recipient_email
+        # CRITICAL: For customer registration or customer operations, the OTP code MUST ALWAYS
+        # be dispatched directly to the customer's respective Gmail / Email inbox!
+        # Never divert customer registrations to the admin address.
+        # Only the mock demo admin accounts without mailboxes (admin@finnova.in / admin@crednest.in)
+        # during admin authentication are forwarded to the configured administrator inbox.
+        is_demo_admin = (
+            purpose != "REGISTRATION"
+            and recipient_email in ["admin@finnova.in", "admin@crednest.in"]
+        )
+        target_delivery = username if (is_demo_admin and username) else recipient_email
 
         msg = MIMEMultipart("alternative")
         msg["Date"] = formatdate(localtime=True)
-        msg["Message-ID"] = make_msgid(domain="gmail.com")
-        msg["From"] = f"FinCore <{username}>"
+        sender_name = getattr(settings, "SMTP_FROM_NAME", "") or "FinCore Banking Security"
+        msg["From"] = f"{sender_name} <{username}>"
         msg["To"] = target_delivery
         msg["Reply-To"] = username
         
