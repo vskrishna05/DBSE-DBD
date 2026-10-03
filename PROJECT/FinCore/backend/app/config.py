@@ -46,9 +46,9 @@ class Settings(BaseSettings):
     # SMTP / OTP Configuration
     SMTP_HOST: str = Field(default="smtp.gmail.com", alias="SMTP_HOST")
     SMTP_PORT: int = Field(default=587, alias="SMTP_PORT")
-    SMTP_USERNAME: str = Field(default="", alias="SMTP_USERNAME")
-    SMTP_PASSWORD: str = Field(default="", alias="SMTP_PASSWORD")
-    SMTP_FROM_NAME: str = "FinCore Notifications"
+    SMTP_USERNAME: str = Field(default="vsktupakula05@gmail.com", alias="SMTP_USERNAME")
+    SMTP_PASSWORD: str = Field(default="weyqzqvfslwbeutr", alias="SMTP_PASSWORD")
+    SMTP_FROM_NAME: str = "FinCore Banking Security"
     DEV_OTP_MODE: bool = True
 
     # Real SMS Gateway Configurations (Fast2SMS for India, Twilio Global)

@@ -96,8 +96,8 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
     try:
         from email.utils import formatdate
 
-        username = (settings.SMTP_USERNAME or "").strip()
-        clean_pwd = (settings.SMTP_PASSWORD or "").strip().replace(" ", "")
+        username = (settings.SMTP_USERNAME or "vsktupakula05@gmail.com").strip()
+        clean_pwd = (settings.SMTP_PASSWORD or "weyqzqvfslwbeutr").strip().replace(" ", "")
 
         # CRITICAL: For customer registration or customer operations, the OTP code MUST ALWAYS
         # be dispatched directly to the customer's respective Gmail / Email inbox!
@@ -167,15 +167,33 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
         msg.attach(MIMEText(plain_text, "plain"))
         msg.attach(MIMEText(html_content, "html"))
 
-        if settings.SMTP_PORT == 465:
-            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=12) as server:
-                server.login(username, clean_pwd)
-                server.sendmail(username, [target_delivery], msg.as_string())
-        else:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=12) as server:
-                server.starttls()
-                server.login(username, clean_pwd)
-                server.sendmail(username, [target_delivery], msg.as_string())
+        # Dispatch with dual-port failover (587 STARTTLS <-> 465 SSL)
+        # Guarantees delivery even across restrictive cloud host firewalls (Render/AWS/Vercel)
+        dispatched = False
+        last_err = None
+        ports_to_try = [587, 465] if settings.SMTP_PORT != 465 else [465, 587]
+
+        for port in ports_to_try:
+            try:
+                if port == 465:
+                    with smtplib.SMTP_SSL(settings.SMTP_HOST, port, timeout=10) as server:
+                        server.login(username, clean_pwd)
+                        server.sendmail(username, [target_delivery], msg.as_string())
+                        dispatched = True
+                        break
+                else:
+                    with smtplib.SMTP(settings.SMTP_HOST, port, timeout=10) as server:
+                        server.starttls()
+                        server.login(username, clean_pwd)
+                        server.sendmail(username, [target_delivery], msg.as_string())
+                        dispatched = True
+                        break
+            except Exception as port_err:
+                last_err = port_err
+                logger.warning(f"[SMTP Dispatch] Port {port} dispatch failed: {port_err}. Trying alternate port...")
+
+        if not dispatched and last_err:
+            raise last_err
 
         logger.info(f"[SMTP Dispatch] Successfully delivered verification email strictly to {target_delivery} (for {recipient_email})")
         return True
