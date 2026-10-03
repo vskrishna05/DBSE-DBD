@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const DEFAULT_LIVE_TUNNEL_URL = 'https://facial-retrieval-dragon-screen.trycloudflare.com';
+export const DEFAULT_LIVE_TUNNEL_URL = 'https://audio-bra-arthritis-imported.trycloudflare.com';
 
 export const getApiBaseUrl = () => {
   const customUrl = typeof window !== 'undefined' ? localStorage.getItem('fincore_api_url') : null;
@@ -24,9 +24,9 @@ export const getApiBaseUrl = () => {
     return '/api';
   }
 
-  // When hosted on external static host (e.g. Vercel) without collocated API, route to active Render backend
+  // When hosted on external static host (e.g. Vercel) without collocated API, route to active tunnel
   if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-    return 'https://fincore-i48i.onrender.com/api';
+    return `${DEFAULT_LIVE_TUNNEL_URL}/api`;
   }
 
   return '/api';
