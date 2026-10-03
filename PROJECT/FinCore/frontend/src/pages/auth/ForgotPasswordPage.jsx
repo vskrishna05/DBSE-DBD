@@ -16,10 +16,10 @@ export default function ForgotPasswordPage() {
     setSubmitting(true);
     try {
       await apiAuth.forgotPassword(email);
-      showToast('If the account exists, a reset code has been dispatched.', 'info');
+      showToast('If the account exists, a reset code has been dispatched to your Gmail.', 'info');
       setTimeout(() => {
         navigate(`/customer/reset-password?email=${encodeURIComponent(email)}`);
-      }, 1500);
+      }, 1200);
     } catch (err) {
       showToast(err.friendlyMessage || 'Request failed', 'error');
     } finally {

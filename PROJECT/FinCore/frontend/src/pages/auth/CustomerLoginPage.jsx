@@ -496,7 +496,7 @@ export default function CustomerLoginPage() {
                     }}
                   >
                     <ShieldCheck size={16} />
-                    <span>OTP Sent to Gmail</span>
+                    <span>OTP Dispatched</span>
                   </div>
                   <div
                     style={{
@@ -507,6 +507,9 @@ export default function CustomerLoginPage() {
                   >
                     Enter the 6-digit code dispatched to <strong>{gmailEmail}</strong>
                     {customerName ? ` (${customerName})` : ''}.
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: isDark ? '#94a3b8' : '#64748b', marginTop: '0.25rem' }}>
+                    💡 Tip: If not in your inbox, please check your <strong>Spam / Junk</strong> folder.
                   </div>
                 </div>
 

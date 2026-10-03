@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Layers, ShieldCheck } from 'lucide-react';
 import { apiAuth } from '../../api/client';
 import { useToast } from '../../context/ToastContext';
 
 export default function VerifyOtpPage() {
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(searchParams.get('email') || '');
   const [otp, setOtp] = useState('');
   const [submitting, setSubmitting] = useState(false);
 

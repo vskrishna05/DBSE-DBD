@@ -45,10 +45,15 @@ def send_gmail_otp(data: GmailOTPRequest, db: Session = Depends(get_db)):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin account is inactive")
         target_name = admin.full_name
 
-    send_otp(db=db, email_or_phone=email_clean, purpose="GMAIL_LOGIN")
+    dispatch_res = send_otp(db=db, email_or_phone=email_clean, purpose="GMAIL_LOGIN")
+    if not dispatch_res.get("success", False):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to send verification code to your Gmail inbox. Please verify your email or try again later."
+        )
     return {
         "success": True,
-        "message": f"6-digit verification code sent to {email_clean}. Valid for 10 minutes.",
+        "message": f"6-digit verification code dispatched to {email_clean}. Please check your Gmail inbox (and Spam folder).",
         "email": email_clean,
         "name": target_name
     }
@@ -545,7 +550,7 @@ def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
     result = send_otp(db=db, email=target_email, purpose="PASSWORD_RESET")
     return {
         "success": True,
-        "message": f"A 6-digit password reset OTP has been dispatched to {target_email}.",
+        "message": f"A 6-digit password reset OTP has been dispatched to {target_email}. Please check your Gmail inbox.",
         "delivery_channel": result.get("delivery_channel", "EMAIL_SMTP"),
         "target": target_email
     }

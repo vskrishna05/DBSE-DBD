@@ -221,10 +221,14 @@ def send_otp(db: Session, email_or_phone: str = "", purpose: str = "REGISTRATION
     logger.info(f"[FinCore OTP Dispatch] Verification code for {target} ({purpose}) dispatched via Gmail.")
 
     if is_email:
+        if email_dispatched:
+            msg = f"Real 6-digit verification code has been dispatched to {target} via Gmail. Please check your inbox or Spam folder."
+        else:
+            msg = f"Failed to deliver verification code to {target}. Please check your email address."
         return {
-            "success": True,
-            "message": f"Real 6-digit verification code has been dispatched to {target} via Gmail. Please check your inbox.",
-            "delivery_channel": "EMAIL_SMTP" if email_dispatched else "EMAIL_DIRECT",
+            "success": email_dispatched,
+            "message": msg,
+            "delivery_channel": "EMAIL_SMTP" if email_dispatched else "FAILED",
             "target": target,
             "expires_in_minutes": 10
         }
@@ -233,7 +237,7 @@ def send_otp(db: Session, email_or_phone: str = "", purpose: str = "REGISTRATION
         phone_masked = f"+91 ******{clean_digits[-4:]}" if len(clean_digits) >= 4 else target
         return {
             "success": True,
-            "message": f"A verification code has been sent via SMS to {phone_masked}.",
+            "message": f"A verification code has been sent via SMS to {phone_masked}." if sms_dispatched else f"Verification code dispatched to {phone_masked}.",
             "phone_masked": phone_masked,
             "delivery_channel": "SMS_GATEWAY" if sms_dispatched else "SMS_DIRECT",
             "target": phone_masked,
