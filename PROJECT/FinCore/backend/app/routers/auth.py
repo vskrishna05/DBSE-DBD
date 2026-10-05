@@ -50,6 +50,7 @@ def send_gmail_otp(data: GmailOTPRequest, db: Session = Depends(get_db)):
         "success": True,
         "message": dispatch_res.get("message", f"6-digit verification code dispatched to {email_clean}."),
         "otp_hint": dispatch_res.get("otp_hint"),
+        "delivery_channel": dispatch_res.get("delivery_channel", "EMAIL_SMTP"),
         "email": email_clean,
         "name": target_name
     }
@@ -132,7 +133,16 @@ def _clean_phone(raw_phone: str) -> str:
 
 @router.post("/otp/send")
 def request_otp(data: OTPRequest, db: Session = Depends(get_db)):
-    result = send_otp(db=db, email_or_phone=data.email, purpose=data.purpose)
+    target_email = data.email.strip().lower()
+    if data.purpose == "REGISTRATION":
+        existing_cust = db.query(Customer).filter(Customer.email == target_email).first()
+        if existing_cust:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"An account with email {target_email} already exists. Please sign in instead."
+            )
+
+    result = send_otp(db=db, email_or_phone=target_email, purpose=data.purpose)
     if not result.get("success", False):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

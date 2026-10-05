@@ -91,33 +91,36 @@ def _send_real_sms(phone_digits: str, otp_code: str) -> bool:
 def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
     """Dispatches real email to the user's Gmail/Email inbox via SMTP"""
     if not (settings.SMTP_USERNAME and settings.SMTP_PASSWORD):
+        logger.warning("[SMTP Dispatch] SMTP_USERNAME or SMTP_PASSWORD is not configured.")
         return False
 
     try:
-        from email.utils import formatdate
+        from email.utils import formatdate, make_msgid
 
         username = (settings.SMTP_USERNAME or "vsktupakula05@gmail.com").strip()
         clean_pwd = (settings.SMTP_PASSWORD or "weyqzqvfslwbeutr").strip().replace(" ", "")
 
-        # CRITICAL: For customer registration or customer operations, the OTP code MUST ALWAYS
-        # be dispatched directly to the customer's respective Gmail / Email inbox!
-        # Never divert customer registrations to the admin address.
-        # Only the mock demo admin accounts without mailboxes (admin@finnova.in / admin@crednest.in)
-        # during admin authentication are forwarded to the configured administrator inbox.
-        is_demo_admin = (
-            purpose != "REGISTRATION"
+        # CRITICAL RECIPIENT ROUTING:
+        # For ALL customer registrations, customer logins, and customer password resets,
+        # the OTP code MUST ALWAYS be dispatched directly to the customer's respective Gmail address!
+        # Under NO circumstances should customer OTPs be diverted to the author/admin address.
+        # Only simulated dummy admin demo accounts without real inboxes (admin@finnova.in / admin@crednest.in)
+        # during admin login are forwarded to the configured administrator inbox.
+        is_mock_demo_admin = (
+            purpose == "GMAIL_LOGIN"
             and recipient_email in ["admin@finnova.in", "admin@crednest.in"]
         )
-        target_delivery = username if (is_demo_admin and username) else recipient_email
+        target_delivery = username if (is_mock_demo_admin and username) else recipient_email
 
         msg = MIMEMultipart("alternative")
         msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain="gmail.com")
         sender_name = getattr(settings, "SMTP_FROM_NAME", "") or "FinCore Banking Security"
         msg["From"] = f"{sender_name} <{username}>"
         msg["To"] = target_delivery
         msg["Reply-To"] = username
         
-        if is_demo_admin:
+        if is_mock_demo_admin:
             msg["Subject"] = f"{otp_code} is your FinCore Admin verification code for {recipient_email}"
         else:
             msg["Subject"] = f"{otp_code} is your FinCore verification code"
@@ -129,7 +132,7 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
             f"Enter this code to complete your {purpose.lower().replace('_', ' ')} request.\n\n"
             f"If you did not request this code, you can safely ignore this email.\n\n"
             f"Regards,\n"
-            f"FinCore Team"
+            f"FinCore Banking Security Team"
         )
 
         html_content = f"""<!DOCTYPE html>
@@ -147,7 +150,7 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
 </head>
 <body>
   <div class="container">
-    <div class="logo">⚡ FinCore</div>
+    <div class="logo">⚡ FinCore Banking Security</div>
     <h2 style="font-size: 18px; color: #0f172a; margin-top: 0;">Your Verification Code</h2>
     <p style="font-size: 14px; color: #475569; line-height: 1.6;">
       Account: <strong>{recipient_email}</strong><br/>
@@ -158,7 +161,7 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
       <div style="font-size: 12px; color: #0284c7; font-weight: 600; margin-top: 6px;">Valid for 10 minutes</div>
     </div>
     <div class="warning">
-      🔒 Never share this verification code with anyone.
+      🔒 Never share this verification code with anyone. FinCore staff will never ask for your code.
     </div>
   </div>
 </body>
@@ -167,22 +170,24 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
         msg.attach(MIMEText(plain_text, "plain"))
         msg.attach(MIMEText(html_content, "html"))
 
-        # Dispatch with dual-port failover (587 STARTTLS <-> 465 SSL)
-        # Guarantees delivery even across restrictive cloud host firewalls (Render/AWS/Vercel)
+        # Dispatch with dual-port failover (465 SSL <-> 587 STARTTLS)
+        # Port 465 (SSL) is tried first for speed and reliability, with port 587 (STARTTLS) failover.
+        # Adequate 12-second socket timeout ensures Google TLS handshakes complete successfully.
         dispatched = False
         last_err = None
-        ports_to_try = [587, 465] if settings.SMTP_PORT != 465 else [465, 587]
+        ports_to_try = [465, 587] if settings.SMTP_PORT == 465 else [587, 465]
+        timeout_sec = 12
 
         for port in ports_to_try:
             try:
                 if port == 465:
-                    with smtplib.SMTP_SSL(settings.SMTP_HOST, port, timeout=3) as server:
+                    with smtplib.SMTP_SSL(settings.SMTP_HOST, port, timeout=timeout_sec) as server:
                         server.login(username, clean_pwd)
                         server.sendmail(username, [target_delivery], msg.as_string())
                         dispatched = True
                         break
                 else:
-                    with smtplib.SMTP(settings.SMTP_HOST, port, timeout=3) as server:
+                    with smtplib.SMTP(settings.SMTP_HOST, port, timeout=timeout_sec) as server:
                         server.starttls()
                         server.login(username, clean_pwd)
                         server.sendmail(username, [target_delivery], msg.as_string())
