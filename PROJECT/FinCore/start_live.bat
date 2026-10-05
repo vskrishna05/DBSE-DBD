@@ -18,4 +18,4 @@ echo Copy the HTTPS URL shown below and share it!
 echo ===================================================
 echo.
 
-"%~dp0cloudflared.exe" tunnel --url http://127.0.0.1:8000
+"%~dp0cloudflared.exe" tunnel --protocol http2 --url http://127.0.0.1:8000

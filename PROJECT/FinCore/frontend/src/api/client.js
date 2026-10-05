@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const DEFAULT_LIVE_TUNNEL_URL = 'https://audio-bra-arthritis-imported.trycloudflare.com';
+export const DEFAULT_LIVE_TUNNEL_URL = 'https://pixels-lou-raid-ftp.trycloudflare.com';
 
 export const getApiBaseUrl = () => {
   const customUrl = typeof window !== 'undefined' ? localStorage.getItem('fincore_api_url') : null;
@@ -45,6 +45,7 @@ export const setCustomApiUrl = (url) => {
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
+  timeout: 18000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -65,7 +66,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     let message = 'An unexpected error occurred. Please try again.';
-    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      message = 'Request timed out: Server took too long to respond. Please check server connection.';
+    } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
       message = 'Network Error: Cannot connect to FinCore backend server. Please verify your backend server or live tunnel is running.';
     } else if (error.response?.data?.detail) {
       message = typeof error.response.data.detail === 'string'
