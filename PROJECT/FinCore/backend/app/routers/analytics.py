@@ -86,25 +86,29 @@ def get_customer_summary(
     for i in range(5, -1, -1):
         target_month_date = now - timedelta(days=i * 30)
         month_label = target_month_date.strftime("%b %Y")
+        year = target_month_date.year
+        month = target_month_date.month
+        start_of_month = datetime(year, month, 1)
+        end_of_month = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
         
-        # Calculate monthly total billed and paid
+        # Calculate monthly total billed and paid (database-agnostic date range for MySQL and SQLite)
         monthly_billed = db.query(func.coalesce(func.sum(Invoice.total_amount), 0)).filter(
             Invoice.customer_id == customer.id,
-            func.month(Invoice.created_at) == target_month_date.month,
-            func.year(Invoice.created_at) == target_month_date.year
+            Invoice.created_at >= start_of_month,
+            Invoice.created_at < end_of_month
         ).scalar()
 
         monthly_paid = db.query(func.coalesce(func.sum(Payment.amount), 0)).filter(
             Payment.customer_id == customer.id,
             Payment.status == "SUCCESS",
-            func.month(Payment.payment_date) == target_month_date.month,
-            func.year(Payment.payment_date) == target_month_date.year
+            Payment.payment_date >= start_of_month,
+            Payment.payment_date < end_of_month
         ).scalar()
 
         monthly_trends.append({
             "month": month_label,
-            "billed": float(monthly_billed),
-            "paid": float(monthly_paid)
+            "billed": float(monthly_billed or 0),
+            "paid": float(monthly_paid or 0)
         })
 
     company = db.query(FinanceCompany).filter(FinanceCompany.id == customer.finance_company_id).first()
@@ -199,16 +203,20 @@ def get_admin_summary(
     for i in range(5, -1, -1):
         target = now - timedelta(days=i * 30)
         label = target.strftime("%b %Y")
+        year = target.year
+        month = target.month
+        start_of_month = datetime(year, month, 1)
+        end_of_month = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
 
         rev = pay_q.filter(
             Payment.status == "SUCCESS",
-            func.month(Payment.payment_date) == target.month,
-            func.year(Payment.payment_date) == target.year
+            Payment.payment_date >= start_of_month,
+            Payment.payment_date < end_of_month
         ).with_entities(func.coalesce(func.sum(Payment.amount), 0)).scalar()
 
         monthly_revenue.append({
             "month": label,
-            "revenue": float(rev)
+            "revenue": float(rev or 0)
         })
 
     company = db.query(FinanceCompany).filter(FinanceCompany.id == company_id).first()

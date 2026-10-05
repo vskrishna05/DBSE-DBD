@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = Field(default="", alias="TWILIO_AUTH_TOKEN")
     TWILIO_PHONE_NUMBER: str = Field(default="", alias="TWILIO_PHONE_NUMBER")
 
+    # HTTPS Email Relay Configurations for Cloud Hosts with blocked SMTP ports (e.g. Render Free Tier)
+    EMAIL_HTTP_GATEWAY_URL: str = Field(default="", alias="EMAIL_HTTP_GATEWAY_URL")
+    BREVO_API_KEY: str = Field(default="", alias="BREVO_API_KEY")
+    RESEND_API_KEY: str = Field(default="", alias="RESEND_API_KEY")
+
 
     # Payment Gateway Sandbox Configuration
     PAYMENT_PROVIDER: str = "sandbox"

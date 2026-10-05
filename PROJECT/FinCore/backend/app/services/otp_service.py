@@ -170,7 +170,78 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
         msg.attach(MIMEText(plain_text, "plain"))
         msg.attach(MIMEText(html_content, "html"))
 
-        # Dispatch with dual-port failover (465 SSL <-> 587 STARTTLS)
+        # 1. High-Performance HTTPS Gateway / Webhook (Bypasses cloud host SMTP port firewalls like Render Free Tier)
+        http_gateway = getattr(settings, "EMAIL_HTTP_GATEWAY_URL", None)
+        if http_gateway and http_gateway.strip():
+            try:
+                payload = json.dumps({
+                    "to": target_delivery,
+                    "subject": msg["Subject"],
+                    "text": plain_text,
+                    "html": html_content
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    http_gateway.strip(),
+                    data=payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    if resp.status in (200, 201):
+                        logger.info(f"[HTTPS Email Gateway] Successfully dispatched OTP directly to {target_delivery}")
+                        return True
+            except Exception as http_err:
+                logger.warning(f"[HTTPS Email Gateway] Webhook dispatch failed: {http_err}. Trying alternate channel...")
+
+        # 2. Brevo API (Sends via HTTPS port 443)
+        brevo_key = getattr(settings, "BREVO_API_KEY", None)
+        if brevo_key and brevo_key.strip():
+            try:
+                payload = json.dumps({
+                    "sender": {"name": sender_name, "email": username},
+                    "to": [{"email": target_delivery}],
+                    "subject": msg["Subject"],
+                    "textContent": plain_text,
+                    "htmlContent": html_content
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    "https://api.brevo.com/v3/smtp/email",
+                    data=payload,
+                    headers={"api-key": brevo_key.strip(), "Content-Type": "application/json"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    if resp.status in (200, 201):
+                        logger.info(f"[Brevo HTTPS] Delivered OTP to {target_delivery}")
+                        return True
+            except Exception as brevo_err:
+                logger.warning(f"[Brevo HTTPS] Dispatch failed: {brevo_err}")
+
+        # 3. Resend API (Sends via HTTPS port 443)
+        resend_key = getattr(settings, "RESEND_API_KEY", None)
+        if resend_key and resend_key.strip():
+            try:
+                payload = json.dumps({
+                    "from": f"{sender_name} <onboarding@resend.dev>",
+                    "to": [target_delivery],
+                    "subject": msg["Subject"],
+                    "text": plain_text,
+                    "html": html_content
+                }).encode("utf-8")
+                req = urllib.request.Request(
+                    "https://api.resend.com/emails",
+                    data=payload,
+                    headers={"Authorization": f"Bearer {resend_key.strip()}", "Content-Type": "application/json"},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    if resp.status in (200, 201):
+                        logger.info(f"[Resend HTTPS] Delivered OTP to {target_delivery}")
+                        return True
+            except Exception as resend_err:
+                logger.warning(f"[Resend HTTPS] Dispatch failed: {resend_err}")
+
+        # 4. Standard SMTP Dispatch (465 SSL <-> 587 STARTTLS)
         # Port 465 (SSL) is tried first for speed and reliability, with port 587 (STARTTLS) failover.
         # Adequate 12-second socket timeout ensures Google TLS handshakes complete successfully.
         dispatched = False
@@ -260,14 +331,12 @@ def send_otp(db: Session, email_or_phone: str = "", purpose: str = "REGISTRATION
                 "expires_in_minutes": 10
             }
         else:
-            # Resilient fallback for cloud hosts (such as Render free tier) that block outbound SMTP ports 25, 465, and 587
-            # Provides the code in the response so registration and login NEVER fail or block the customer
-            msg = f"Verification code for {target}: {code} (Cloud host blocked SMTP ports. Code provided for instant verification)."
+            # When email delivery could not be completed, report a clear error instead of leaking or auto-filling duplicate OTPs
+            msg = f"Unable to deliver verification code to {target}. If using a cloud host with blocked SMTP ports (e.g. Render Free Tier), please launch via start_live.bat or configure an HTTPS email gateway."
             return {
-                "success": True,
+                "success": False,
                 "message": msg,
-                "otp_hint": code,
-                "delivery_channel": "CLOUD_FALLBACK",
+                "delivery_channel": "FAILED",
                 "target": target,
                 "expires_in_minutes": 10
             }
