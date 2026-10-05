@@ -241,32 +241,39 @@ def _send_real_email(recipient_email: str, otp_code: str, purpose: str) -> bool:
             except Exception as resend_err:
                 logger.warning(f"[Resend HTTPS] Dispatch failed: {resend_err}")
 
-        # 4. Standard SMTP Dispatch (465 SSL <-> 587 STARTTLS)
-        # Port 465 (SSL) is tried first for speed and reliability, with port 587 (STARTTLS) failover.
-        # Adequate 12-second socket timeout ensures Google TLS handshakes complete successfully.
+        # 4. Standard SMTP Dispatch (Direct SSL 465 prioritized over STARTTLS 587)
+        # Port 465 (Direct SSL) connects in ~1.5s vs 587 which requires multiple roundtrips.
+        # Generous 25-second socket timeout ensures Google TLS handshakes complete even during latency spikes.
         dispatched = False
         last_err = None
-        ports_to_try = [465, 587] if settings.SMTP_PORT == 465 else [587, 465]
-        timeout_sec = 12
+        ports_to_try = [465, 587]
+        timeout_sec = 25
 
         for port in ports_to_try:
-            try:
-                if port == 465:
-                    with smtplib.SMTP_SSL(settings.SMTP_HOST, port, timeout=timeout_sec) as server:
-                        server.login(username, clean_pwd)
-                        server.sendmail(username, [target_delivery], msg.as_string())
-                        dispatched = True
-                        break
-                else:
-                    with smtplib.SMTP(settings.SMTP_HOST, port, timeout=timeout_sec) as server:
-                        server.starttls()
-                        server.login(username, clean_pwd)
-                        server.sendmail(username, [target_delivery], msg.as_string())
-                        dispatched = True
-                        break
-            except Exception as port_err:
-                last_err = port_err
-                logger.warning(f"[SMTP Dispatch] Port {port} dispatch failed: {port_err}.")
+            for attempt in range(2):
+                try:
+                    if port == 465:
+                        with smtplib.SMTP_SSL(settings.SMTP_HOST, port, timeout=timeout_sec) as server:
+                            server.login(username, clean_pwd)
+                            server.sendmail(username, [target_delivery], msg.as_string())
+                            dispatched = True
+                            break
+                    else:
+                        with smtplib.SMTP(settings.SMTP_HOST, port, timeout=timeout_sec) as server:
+                            server.starttls()
+                            server.login(username, clean_pwd)
+                            server.sendmail(username, [target_delivery], msg.as_string())
+                            dispatched = True
+                            break
+                except Exception as port_err:
+                    last_err = port_err
+                    logger.warning(f"[SMTP Dispatch] Port {port} (attempt {attempt+1}) failed: {port_err}.")
+                    if attempt == 0:
+                        import time
+                        time.sleep(1)
+
+            if dispatched:
+                break
 
         if not dispatched and last_err:
             raise last_err
@@ -332,7 +339,7 @@ def send_otp(db: Session, email_or_phone: str = "", purpose: str = "REGISTRATION
             }
         else:
             # When email delivery could not be completed, report a clear error instead of leaking or auto-filling duplicate OTPs
-            msg = f"Unable to deliver verification code to {target}. If using a cloud host with blocked SMTP ports (e.g. Render Free Tier), please launch via start_live.bat or configure an HTTPS email gateway."
+            msg = f"Unable to deliver verification code to {target}. Please wait a few seconds and try again, or check your internet connection."
             return {
                 "success": False,
                 "message": msg,
