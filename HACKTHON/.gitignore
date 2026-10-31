@@ -1,0 +1,49 @@
+# Java Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+.mvn/
+.metadata/
+
+# Node.js / Vite
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python / FastAPI
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# Uploads & Temporary files
+uploads/
+backend/uploads/
+*.tmp
